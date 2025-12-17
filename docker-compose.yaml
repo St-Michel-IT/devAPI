@@ -10,16 +10,30 @@ services:
       MYSQL_USER: sirenuser
       MYSQL_PASSWORD: 12345678
     ports:
-      - "3366:3306"
+      - "3367:3306"
     volumes:
       - ./my.cnf:/etc/mysql/conf.d/my.cnf
       - db_data:/var/lib/mysql
       - ./data:/data
     healthcheck:
       test: [ "CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysqladmin ping -h 127.0.0.1 -usirenuser --silent" ]
-      interval: 100s
+      interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 30s
+
+  spark:
+    build: .
+    container_name: spark
+    mem_limit: 4g
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "15002:15002"
+    environment:
+      MYSQL_HOST: "db"
+      MYSQL_PORT: "3306"
 
 volumes:
   db_data:

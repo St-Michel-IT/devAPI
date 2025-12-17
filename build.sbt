@@ -1,5 +1,6 @@
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.12.17"
+
 libraryDependencies ++= Seq(
   "mysql" % "mysql-connector-java" % "8.0.33",
   "com.github.scopt" %% "scopt" % "4.1.0", "io.github.cdimascio" % "dotenv-java" % "3.0.0",

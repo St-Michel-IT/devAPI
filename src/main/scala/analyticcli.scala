@@ -4,7 +4,10 @@ import org.apache.spark.sql.SparkSession
 import siren.SirenLogger.info
 
 object analyticcli extends App {
-  val jdbcUrl = "jdbc:mysql://localhost:3366/siren"
+  val mysqlHost = sys.env.getOrElse("MYSQL_HOST", "db")
+  val mysqlPort = sys.env.getOrElse("MYSQL_PORT", "3306")
+  val jdbcUrl = s"jdbc:mysql://$mysqlHost:$mysqlPort/siren"
+
   val spark = SparkSession.builder()
     .appName("spark-connect-server")
     .master("local[*]")

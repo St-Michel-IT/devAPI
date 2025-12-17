@@ -1,38 +1,35 @@
-# -------- BUILD (JDK + sbt) --------
+# build with sbt (JDK + sbt)
 FROM sbtscala/scala-sbt:eclipse-temurin-17.0.15_6_1.11.7_2.12.20 AS build
 WORKDIR /app
 
-# better caching of dependencies
+# copy project descriptor first for layer caching
 COPY project ./project
 COPY build.sbt ./
-RUN sbt -batch update
 
-# now copy the rest and build a fat jar
-COPY . .
-RUN sbt -batch clean assembly
+# fetch deps and compile
+RUN sbt -batch update compile
 
-# -------- RUN (JRE only) --------
+# copy full sources and produce normal package (no assembly/fat-jar)
+COPY src ./src
+RUN sbt -batch package
+
+# collect the packaged project jar(s) and all runtime dependency jars into /app/lib
+RUN mkdir -p /app/lib && \
+    cp target/scala-*/*.jar /app/lib/ 2>/dev/null || true && \
+    sbt -batch "show runtime:fullClasspath" \
+      | perl -nle 'print $1 if /\(([^)]+\.jar)\)/' \
+      | while read jar; do cp -n "$jar" /app/lib/ 2>/dev/null || true; done
+
+# run image (JRE only)
 FROM eclipse-temurin:17-jre-jammy AS run
 WORKDIR /app
+COPY --from=build /app/lib /app/lib
 
-# copy the uber-jar produced by sbt-assembly
-COPY --from=build /app/target/scala-2.12/*assembly*.jar /app/app.jar
-
-RUN cat <<'EOF' >/usr/local/bin/start-app.sh
-#!/usr/bin/env bash
-set -euo pipefail
-
-APP_JAR="/app/app.jar"
-
-# Use fully-qualified main class names
-#CLI_MAIN="${CLI_MAIN:-siren.feedDB}"
-ANALYTIC_MAIN="${ANALYTIC_MAIN:-siren.analyticcli}"
-
-#java -cp "${APP_JAR}" "${CLI_MAIN}"
-java -cp "${APP_JAR}" "${ANALYTIC_MAIN}"
-EOF
-
-RUN chmod +x /usr/local/bin/start-app.sh
-
+ENV APP_MAIN="siren.analyticcli"
 EXPOSE 15002
-CMD ["/usr/local/bin/start-app.sh"]
+
+CMD ["sh", "-c", "exec java \
+  --add-exports=java.base/sun.nio.ch=ALL-UNNAMED \
+  --add-opens=java.base/java.nio=ALL-UNNAMED \
+  --add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
+  -cp '/app/lib/*' ${APP_MAIN}"]
