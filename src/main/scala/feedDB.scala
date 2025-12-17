@@ -12,7 +12,7 @@ object feedDB {
       """
       CREATE DATABASE IF NOT EXISTS siren;
       """
-    runRequest(sqlRequest, url, "")
+    runRootRequest(sqlRequest, url, "")
   }
 
   def grantPrivileges(
@@ -22,12 +22,12 @@ object feedDB {
       """
       GRANT ALL PRIVILEGES ON siren.* TO 'sirenuser'@'%';
       """
-    runRequest(sirenuserGrantSqlRequest, url, "")
+    runRootRequest(sirenuserGrantSqlRequest, url, "")
     val flushSQLRequest: String =
       """
       FLUSH PRIVILEGES;
       """
-    runRequest(flushSQLRequest, url, "")
+    runRootRequest(flushSQLRequest, url, "")
   }
 
   def createUniteLegaleTable(
@@ -45,7 +45,7 @@ object feedDB {
         INDEX idx_activite_principale_unite_legale (activite_principale_unite_legale)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
       """
-    runRequest(sqlRequest, url, "siren")
+    runSirenUserRequest(sqlRequest, url, "siren")
   }
 
   def insertUniteLegaleFile(
@@ -53,7 +53,7 @@ object feedDB {
                            ): Unit = {
     val sqlRequest: String =
       """
-    LOAD DATA LOCAL INFILE './data/StockUniteLegale_utf8.csv'
+    LOAD DATA LOCAL INFILE '/app/data/StockUniteLegale_utf8.csv'
     INTO TABLE unite_legale
     FIELDS TERMINATED BY ','
     LINES TERMINATED BY '\n'
@@ -95,20 +95,41 @@ object feedDB {
       @skip_caractereEmployeurUniteLegale
     );
     """
-    runRequest(sqlRequest, url, "siren")
+    runSirenUserRequest(sqlRequest, url, "siren")
+  }
+
+  private def runRootRequest(
+                              sqlRequest: String,
+                              url: String,
+                              base: String
+                            ): Unit = {
+    val mysqRootPassword = sys.env.getOrElse("MYSQL_ROOT_PASSWORD", "12345678")
+    runRequest(sqlRequest, url, base, "root", mysqRootPassword)
+  }
+
+  private def runSirenUserRequest(
+                                   sqlRequest: String,
+                                   url: String,
+                                   base: String
+                                 ): Unit = {
+    val mysqlUser = sys.env.getOrElse("MYSQL_USER", "sirenuser")
+    val mysqlPassword = sys.env.getOrElse("MYSQL_PASSWORD", "12345678")
+    runRequest(sqlRequest, url, base, mysqlUser, mysqlPassword)
   }
 
   private def runRequest(
                           sqlRequest: String,
                           url: String,
-                          base: String
+                          base: String,
+                          user: String,
+                          password: String
                         ): Unit = {
     try {
       Class.forName("com.mysql.cj.jdbc.Driver")
 
       val props = new Properties()
-      props.setProperty("user", "sirenuser")
-      props.setProperty("password", "12345678")
+      props.setProperty("user", user)
+      props.setProperty("password", password)
       props.setProperty("allowLoadLocalInfile", "true")
 
       // timeouts (ms)

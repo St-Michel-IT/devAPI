@@ -10,3 +10,10 @@ Chaque service d'API est protégé par OAuth2.
 
 Télécharger https://object.files.data.gouv.fr/data-pipeline-open/siren/stock/StockUniteLegale_utf8.zip et décompresser
 le fichier `StockUniteLegale_utf8.csv` dans le dossier `data/`.
+
+## Build dans Docker
+
+```bash
+docker compose build
+docker compose up
+```
